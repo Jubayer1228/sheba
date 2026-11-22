@@ -1,11 +1,12 @@
 # Cloud Run API image (SQLite + uploads under /tmp — demo/ephemeral; use Cloud SQL for production persistence)
-FROM golang:1.25-bookworm AS builder
+FROM golang:1.26-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+ENV GOTOOLCHAIN=auto
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-ENV CGO_ENABLED=1 GOOS=linux GOTOOLCHAIN=auto
+ENV CGO_ENABLED=1 GOOS=linux
 RUN go build -trimpath -ldflags="-s -w" -o /sheba ./cmd/server
 
 FROM debian:bookworm-slim

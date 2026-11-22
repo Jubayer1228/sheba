@@ -1,0 +1,13 @@
+**/.git
+**/.env
+**/.env.*
+**/node_modules
+frontend/dist
+backend/bin
+backend/sheba.db
+backend/sheba.db-*
+backend/uploads/*
+!backend/uploads/.gitkeep
+**/*.log
+frontend/test-results
+**/.DS_Store

@@ -1,0 +1,8 @@
+bin/
+sheba.db
+sheba.db-*
+.env
+.env.*
+uploads/*
+!uploads/.gitkeep
+*.log

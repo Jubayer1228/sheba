@@ -1,0 +1,26 @@
+substitutions:
+  _REGION: us-central1
+  _API_SERVICE: sheba-api
+  _REPO: cloud-run-source-deploy
+options:
+  logging: CLOUD_LOGGING_ONLY
+steps:
+  - id: build-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_API_SERVICE}:$BUILD_ID
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_API_SERVICE}:latest
+      - -f
+      - backend/Dockerfile
+      - backend
+  - id: push-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_API_SERVICE}
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_API_SERVICE}:$BUILD_ID

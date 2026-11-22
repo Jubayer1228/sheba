@@ -15,11 +15,13 @@ chmod +x deploy/deploy-cloudrun.sh
 ./deploy/deploy-cloudrun.sh
 ```
 
-Or:
+Recommended flow (build in Cloud Build, deploy with your user — avoids IAM `actAs` issues on some projects):
 
 ```bash
-gcloud builds submit --config=deploy/cloudbuild.yaml .
+./deploy/deploy-cloudrun.sh
 ```
+
+`deploy/cloudbuild.yaml` is all-in-one (build + deploy) and may need extra Cloud Build IAM on the default compute service account.
 
 After deploy, open the **web** service URL (not the API URL directly).
 

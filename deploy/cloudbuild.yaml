@@ -3,22 +3,12 @@ substitutions:
   _REGION: us-central1
   _API_SERVICE: sheba-api
   _WEB_SERVICE: sheba-web
-  _REPO: sheba
+  _REPO: cloud-run-source-deploy
 
 options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  - id: ensure-repo
-    name: gcr.io/google.com/cloudsdktool/cloud-sdk
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        gcloud artifacts repositories describe ${_REPO} --location=${_REGION} \
-          || gcloud artifacts repositories create ${_REPO} \
-            --repository-format=docker --location=${_REGION} --description="Sheba images"
-
   - id: build-api
     name: gcr.io/cloud-builders/docker
     args:

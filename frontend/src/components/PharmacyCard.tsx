@@ -14,8 +14,8 @@ export function PharmacyCard({ pharmacy }: { pharmacy: Pharmacy }) {
       <div className="meta">
         <h3>{pharmacy.name}</h3>
         <div className="sub">
-          {pharmacy.area}
-          {pharmacy.tags ? ` · ${pharmacy.tags.split(',')[0]}` : ''}
+          {pharmacy.area} · Min {taka(pharmacy.min_order)}
+          {pharmacy.review_count ? ` · ${pharmacy.review_count} reviews` : ''}
         </div>
         <div className="row-stats">
           <span className="pill">

@@ -13,6 +13,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import { useCartStore } from '../stores/cartStore'
 import { useLocationStore } from '../stores/locationStore'
+import { HeaderCareMenu } from './HeaderCareMenu'
 import { LocationPicker } from './LocationPicker'
 
 export function Header() {
@@ -23,14 +24,25 @@ export function Header() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [q, setQ] = useState('')
 
+  const isDoctor = user?.role === 'doctor'
+
   return (
     <>
       <header className="site-header">
         <div className="header-top">
           <Link to="/" className="brand" aria-label="Sheba home">
-            <span className="brand-mark">✚</span>
+            <span className="brand-mark" aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 5v14M5 12h14"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
             <span>
-              Sheba<em>.</em>
+              Sheba<span className="brand-dot">.</span>
             </span>
           </Link>
 
@@ -42,13 +54,16 @@ export function Header() {
               navigate(query ? `/search?q=${encodeURIComponent(query)}` : '/search')
             }}
           >
-            <Search size={18} color="#5b6b7c" />
+            <Search size={18} aria-hidden />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search Napa, Seclo, Lazz Pharma…"
+              placeholder="Medicine, brand, or pharmacy name…"
               aria-label="Search medicines or pharmacies"
             />
+            <kbd className="search-kbd" aria-hidden>
+              ↵
+            </kbd>
           </form>
 
           <div className="header-actions">
@@ -57,20 +72,20 @@ export function Header() {
               className="location-chip"
               onClick={() => setPickerOpen(true)}
             >
-              <MapPin size={15} color="#0f9f8a" />
+              <MapPin size={15} />
               <span>{location.label}</span>
               <ChevronDown size={14} />
             </button>
 
-            <NavLink to="/consult" className="nav-link">
+            <NavLink to="/consult" className="nav-link nav-link--accent" title="Health chat">
               <Stethoscope size={16} />
               <span className="nav-link-label">Care</span>
             </NavLink>
-            <NavLink to="/prescription" className="nav-link">
+            <NavLink to="/prescription" className="nav-link" title="Upload prescription">
               <FileText size={16} />
               <span className="nav-link-label">Rx</span>
             </NavLink>
-            <NavLink to="/orders" className="nav-link">
+            <NavLink to="/orders" className="nav-link" title="Your orders">
               <Package size={16} />
               <span className="nav-link-label">Orders</span>
             </NavLink>
@@ -94,75 +109,45 @@ export function Header() {
           </div>
         </div>
 
-        <div className="header-sub">
-          <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            Pharmacies near you
+        <nav className="header-sub" aria-label="Browse">
+          <NavLink to="/" end className={({ isActive }) => `nav-pill${isActive ? ' active' : ''}`}>
+            Pharmacies
           </NavLink>
           <NavLink
-            to="/register"
-            className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+            to="/search"
+            className={({ isActive }) => `nav-pill${isActive ? ' active' : ''}`}
           >
-            Join Sheba
-          </NavLink>
-          <NavLink
-            to="/search?q=paracetamol"
-            className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          >
-            Fever & pain
-          </NavLink>
-          <NavLink
-            to="/search?q=diabetes"
-            className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          >
-            Chronic care
-          </NavLink>
-          <NavLink
-            to="/doctors"
-            className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          >
-            Find doctors
-          </NavLink>
-          <NavLink
-            to="/voice"
-            className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          >
-            Voice nurse call
-          </NavLink>
-          <NavLink
-            to="/consult"
-            className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          >
-            Live chat agent
-          </NavLink>
-          <NavLink
-            to="/appointments"
-            className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          >
-            Appointments
-          </NavLink>
-          <NavLink
-            to="/doctor"
-            className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          >
-            Doctor desk
+            Medicines
           </NavLink>
           <NavLink
             to="/prescription"
-            className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+            className={({ isActive }) => `nav-pill${isActive ? ' active' : ''}`}
           >
             Upload prescription
           </NavLink>
+          <HeaderCareMenu />
+          <NavLink
+            to="/register"
+            className={({ isActive }) => `nav-pill${isActive ? ' active' : ''}`}
+          >
+            Partner with us
+          </NavLink>
+          {isDoctor ? (
+            <NavLink
+              to="/doctor"
+              className={({ isActive }) => `nav-pill nav-pill--pro${isActive ? ' active' : ''}`}
+            >
+              Doctor desk
+            </NavLink>
+          ) : null}
           <button
             type="button"
-            className="nav-link"
-            onClick={() => {
-              /* filter via home query param handled on home when hash used */
-              navigate('/?night=1')
-            }}
+            className="nav-pill"
+            onClick={() => navigate('/?night=1')}
           >
-            Late-night open
+            Open late night
           </button>
-        </div>
+        </nav>
       </header>
 
       {pickerOpen ? <LocationPicker onClose={() => setPickerOpen(false)} /> : null}

@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Clock3,
   FileUp,
+  MapPinned,
   Moon,
   ShieldCheck,
   Sparkles,
-  Users,
+  Store,
   Wallet,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -16,17 +17,21 @@ import { CategoryChips } from '../components/CategoryChips'
 import { EmptyState } from '../components/EmptyState'
 import { MedicineCard } from '../components/MedicineCard'
 import { PharmacyCard } from '../components/PharmacyCard'
-import { Spinner } from '../components/Spinner'
+import { PharmacyGridSkeleton } from '../components/PharmacyGridSkeleton'
 import { useCartStore } from '../stores/cartStore'
 import { useLocationStore } from '../stores/locationStore'
 import { taka } from '../lib/format'
 
 type SortKey = 'distance' | 'rating' | 'delivery_fee' | 'fastest'
 
+const NEARBY_KM = 8
+
 export function HomePage() {
   const { lat, lng, city, area } = useLocationStore()
   const [params] = useSearchParams()
-  const [sort, setSort] = useState<SortKey>('fastest')
+  const [sort, setSort] = useState<SortKey>(
+    params.get('night') === '1' ? 'fastest' : 'distance',
+  )
   const [openOnly, setOpenOnly] = useState(params.get('night') === '1')
   const [rxOnly, setRxOnly] = useState(false)
   const cartPharmacy = useCartStore((s) => s.pharmacy)
@@ -37,13 +42,12 @@ export function HomePage() {
   const categoriesQ = useQuery({ queryKey: ['categories'], queryFn: catalogApi.categories })
   const featuredQ = useQuery({ queryKey: ['featured'], queryFn: catalogApi.featured })
   const pharmaciesQ = useQuery({
-    queryKey: ['pharmacies', lat, lng, city, area, sort, openOnly, rxOnly],
+    queryKey: ['pharmacies', lat, lng, city, sort, openOnly, rxOnly],
     queryFn: () =>
       pharmacyApi.list({
         lat,
         lng,
         city,
-        area,
         sort,
         open: openOnly,
         rx: rxOnly,
@@ -52,62 +56,105 @@ export function HomePage() {
 
   const pharmacies = useMemo(() => pharmaciesQ.data ?? [], [pharmaciesQ.data])
   const featured = useMemo(() => (featuredQ.data ?? []).slice(0, 6), [featuredQ.data])
-  const avgMins = useMemo(() => {
-    if (!pharmacies.length) return 35
-    return Math.round(
-      pharmacies.slice(0, 5).reduce((s, p) => s + p.delivery_minutes, 0) /
-        Math.min(5, pharmacies.length),
+
+  const stats = useMemo(() => {
+    const open = pharmacies.filter((p) => p.is_open)
+    const nearby = pharmacies.filter(
+      (p) => p.distance_km != null && p.distance_km <= NEARBY_KM,
     )
-  }, [pharmacies])
+    const inArea = pharmacies.filter(
+      (p) => p.area.toLowerCase() === area.toLowerCase(),
+    )
+    const etaPool = open.length ? open : pharmacies
+    const fastest =
+      etaPool.length > 0
+        ? Math.min(...etaPool.map((p) => p.delivery_minutes))
+        : null
+    const avgMins =
+      etaPool.length > 0
+        ? Math.round(
+            etaPool.slice(0, 6).reduce((s, p) => s + p.delivery_minutes, 0) /
+              Math.min(6, etaPool.length),
+          )
+        : null
+  return {
+      open: open.length,
+      nearby: nearby.length,
+      inArea: inArea.length,
+      total: pharmacies.length,
+      fastest,
+      avgMins,
+    }
+  }, [pharmacies, area])
 
   return (
-    <main className="page">
+    <main className="page home-page">
       <section className="hero">
         <div className="hero-copy">
           <div className="hero-kicker">
             <Sparkles size={14} />
-            Neighborhood pharmacy network · {area}
+            Live pharmacy catalog · {city}
           </div>
-          <h1>Sheba</h1>
+          <h1>
+            Real shops. Real stock.
+            <span className="hero-subline"> Delivered from named partners.</span>
+          </h1>
           <p>
-            Order from pharmacies you already trust — delivered in under an hour,
-            with prescription upload, COD, and no bKash PIN sharing.
+            Browse partner pharmacies in Dhaka, compare ETA and fees, upload Rx when
+            needed, and pay with COD or mobile money — we never ask for your PIN.
           </p>
           <div className="hero-actions">
             <Link to="/search" className="btn btn-primary">
-              Find medicines
+              Search medicines
             </Link>
-            <Link to="/prescription" className="btn btn-signal">
+            <Link to="/prescription" className="btn btn-secondary-on-dark">
               <FileUp size={16} />
               Upload prescription
             </Link>
           </div>
         </div>
 
-        <div className="hero-panel">
-          <div className="hero-stat">
-            <strong>~{avgMins} min</strong>
-            <span>Typical delivery near {area} right now</span>
+        <div className="hero-panel" aria-live="polite">
+          <div className="hero-stat hero-stat--accent">
+            <strong>{stats.fastest != null ? `${stats.fastest} min` : '—'}</strong>
+            <span>Fastest quoted delivery from open partners</span>
           </div>
           <div className="hero-stat">
-            <strong>{pharmacies.length || '—'} shops</strong>
-            <span>Partner pharmacies within your city map</span>
+            <strong>{stats.total || '—'}</strong>
+            <span>
+              Partner pharmacies in {city}
+              {stats.nearby > 0 ? ` · ${stats.nearby} within ${NEARBY_KM} km` : ''}
+            </span>
           </div>
           <div className="hero-stat">
-            <strong>Named partner</strong>
-            <span>Every order shows which pharmacy fulfills it</span>
+            <strong>{stats.open}</strong>
+            <span>
+              Open for orders now
+              {stats.inArea > 0 ? ` (${stats.inArea} counters in ${area})` : ''}
+            </span>
           </div>
         </div>
       </section>
 
-      <section className="trust-rail" aria-label="Why Sheba works in Bangladesh">
+      <section className="trust-rail" aria-label="How Sheba works">
+        <article className="trust-card">
+          <div className="icon">
+            <Store size={18} />
+          </div>
+          <div>
+            <h3>Named pharmacy</h3>
+            <p>Every cart and invoice shows which partner shop fulfills the order.</p>
+          </div>
+        </article>
         <article className="trust-card">
           <div className="icon">
             <Clock3 size={18} />
           </div>
           <div>
-            <h3>Hyperlocal speed</h3>
-            <p>Sick now ≠ next-day parcel. We route to open shops nearby.</p>
+            <h3>Live ETAs</h3>
+            <p>
+              Delivery minutes and fees come from each shop&apos;s profile — not ads.
+            </p>
           </div>
         </article>
         <article className="trust-card">
@@ -115,8 +162,8 @@ export function HomePage() {
             <ShieldCheck size={18} />
           </div>
           <div>
-            <h3>Authenticity trail</h3>
-            <p>Partner invoice + sealed pack cues against counterfeit risk.</p>
+            <h3>Rx verified</h3>
+            <p>Prescription lines stay locked until a pharmacist accepts your upload.</p>
           </div>
         </article>
         <article className="trust-card">
@@ -124,17 +171,8 @@ export function HomePage() {
             <Wallet size={18} />
           </div>
           <div>
-            <h3>Safe MFS payments</h3>
-            <p>COD, bKash & Nagad via txn ID — we never ask for your PIN.</p>
-          </div>
-        </article>
-        <article className="trust-card">
-          <div className="icon">
-            <Users size={18} />
-          </div>
-          <div>
-            <h3>Family ordering</h3>
-            <p>Office workers ordering for parents at home — dual address ready.</p>
+            <h3>Local payments</h3>
+            <p>COD, bKash, or Nagad with transaction ID — no OTP sharing on chat.</p>
           </div>
         </article>
       </section>
@@ -144,46 +182,51 @@ export function HomePage() {
       <div className="section-head">
         <div>
           <h2>Shop by need</h2>
-          <p>Fever tonight, chronic refills, baby care — start here.</p>
+          <p>Categories loaded from the catalog — tap to search medicines.</p>
         </div>
         <Link to="/search" className="linkish">
-          See all
+          Browse all
         </Link>
       </div>
-      {categoriesQ.isLoading ? <Spinner /> : <CategoryChips categories={categoriesQ.data ?? []} />}
+      {categoriesQ.isLoading ? (
+        <div className="skeleton-chips" aria-hidden>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <span key={i} className="skeleton-pill" />
+          ))}
+        </div>
+      ) : (
+        <CategoryChips categories={categoriesQ.data ?? []} />
+      )}
 
       <section className="feature-band">
         <article className="feature-card accent">
-          <span className="tag">Someone is sick</span>
-          <h3>Rx → nearest open pharmacy</h3>
+          <span className="tag">Prescription</span>
+          <h3>Rx → pharmacist review</h3>
           <p>
-            Upload a prescription once. We list partners that accept Rx, show ETA
-            and fee, then let a pharmacist confirm the cart before you pay.
+            Upload once. We only show pharmacies that accept Rx in your city, with
+            minimum order and fee visible before checkout.
           </p>
           <Link to="/prescription" className="btn btn-primary" style={{ marginTop: 14 }}>
-            Start with prescription
+            Upload prescription
           </Link>
         </article>
         <article className="feature-card">
-          <span className="tag">Chronic care</span>
-          <h3>Refills without the queue</h3>
+          <span className="tag">Telehealth</span>
+          <h3>Chat or voice triage</h3>
           <p>
-            Diabetes, BP, thyroid — save your usual medicines and reorder from the
-            same trusted counter your family already uses.
+            English live agent suggests specialty, matches doctors, and can route to
+            phone or video consults.
           </p>
-          <Link to="/search?q=diabetes" className="btn btn-ghost" style={{ marginTop: 14 }}>
-            Browse chronic meds
+          <Link to="/consult" className="btn btn-ghost" style={{ marginTop: 14 }}>
+            Open health chat
           </Link>
         </article>
         <article className="feature-card">
           <span className="tag">
             <Moon size={12} style={{ display: 'inline', verticalAlign: -1 }} /> Late night
           </span>
-          <h3>When retail shutters</h3>
-          <p>
-            Filter partners still open after hours. A small urgency fee beats an
-            empty cupboard at 1am.
-          </p>
+          <h3>Still open</h3>
+          <p>Filter partners that are open now, sorted by fastest delivery.</p>
           <button
             type="button"
             className="btn btn-ghost"
@@ -191,7 +234,7 @@ export function HomePage() {
             onClick={() => {
               setOpenOnly(true)
               setSort('fastest')
-              window.scrollTo({ top: document.body.scrollHeight / 2, behavior: 'smooth' })
+              document.getElementById('pharmacy-list')?.scrollIntoView({ behavior: 'smooth' })
             }}
           >
             Show open now
@@ -200,19 +243,26 @@ export function HomePage() {
       </section>
 
       <div className="page-split">
-        <div>
+        <div id="pharmacy-list">
           <div className="section-head">
             <div>
-              <h2>Pharmacies near {area}</h2>
-              <p>Compare distance, fee, and minutes — pick the counter you trust.</p>
+              <h2>Delivering near {area}</h2>
+              <p>
+                <MapPinned
+                  size={14}
+                  style={{ display: 'inline', verticalAlign: -2, marginRight: 4 }}
+                />
+                Sorted by {sort === 'distance' ? 'distance from your pin' : sort.replace('_', ' ')}
+                {stats.avgMins != null ? ` · ~${stats.avgMins} min avg among top picks` : ''}
+              </p>
             </div>
           </div>
 
           <div className="filters">
             {(
               [
-                ['fastest', 'Fastest'],
                 ['distance', 'Nearest'],
+                ['fastest', 'Fastest'],
                 ['rating', 'Top rated'],
                 ['delivery_fee', 'Lowest fee'],
               ] as const
@@ -242,32 +292,34 @@ export function HomePage() {
             </button>
           </div>
 
-          {pharmaciesQ.isLoading ? <Spinner /> : null}
+          {pharmaciesQ.isLoading ? <PharmacyGridSkeleton /> : null}
           {pharmaciesQ.isError ? (
             <EmptyState
               title="Couldn’t load pharmacies"
               description={(pharmaciesQ.error as Error).message}
             />
           ) : null}
-          {!pharmaciesQ.isLoading && pharmacies.length === 0 ? (
+          {!pharmaciesQ.isLoading && !pharmaciesQ.isError && pharmacies.length === 0 ? (
             <EmptyState
               title="No pharmacies match"
-              description="Try another area or clear filters."
+              description="Try another location or clear filters."
             />
           ) : null}
 
-          <div className="pharmacy-grid">
-            {pharmacies.map((p) => (
-              <PharmacyCard key={p.id} pharmacy={p} />
-            ))}
-          </div>
+          {!pharmaciesQ.isLoading && pharmacies.length > 0 ? (
+            <div className="pharmacy-grid">
+              {pharmacies.map((p) => (
+                <PharmacyCard key={p.id} pharmacy={p} />
+              ))}
+            </div>
+          ) : null}
 
           {featured.length > 0 ? (
             <>
               <div className="section-head" style={{ marginTop: 36 }}>
                 <div>
-                  <h2>Popular right now</h2>
-                  <p>Compare the same brand across partner shops when you search.</p>
+                  <h2>Featured in catalog</h2>
+                  <p>Live prices from partner inventory — tap to add from that shop.</p>
                 </div>
                 <Link to="/search?q=napa" className="linkish">
                   Search Napa
@@ -312,8 +364,8 @@ export function HomePage() {
             </div>
           ) : (
             <p className="muted" style={{ fontSize: '0.92rem', lineHeight: 1.45 }}>
-              Add medicines from one pharmacy to unlock delivery or pickup. Switching
-              shops clears the cart — same as ordering from a single counter.
+              Items stay with one pharmacy at a time — prices and stock come from that
+              shop&apos;s live catalog.
             </p>
           )}
         </aside>
